@@ -1,3 +1,5 @@
+use walkdir::WalkDir;
+
 fn main() {
     let mut build = cc::Build::new();
     let env = std::env::var("TARGET").unwrap();
@@ -7,26 +9,36 @@ fn main() {
         build.include("bx/include/compat/msvc");
         build.include("bgfx/3rdparty/directx-headers/include/directx");
         build.flag("/Zc:__cplusplus");
+        build.flag("/std:c++17");
     } else if env.contains("darwin") {
         // macOS includes
         build.include("bx/include/compat/osx");
         build.flag("-std=c++14");
     } else if env.contains("emscripten") {
         build.flag("-std=c++14");
-    } else {
     }
 
     // add shared include dirs
     build.include("bgfx/3rdparty/khronos");
+    build.include("bgfx/3rdparty/glsl-optimizer/src/glsl");
+    build.include("bgfx/3rdparty/glsl-optimizer/src/util");
+    build.include("bgfx/3rdparty/glsl-optimizer/src/mesa");
+    build.include("bgfx/3rdparty/glsl-optimizer/src");
+    build.include("bgfx/3rdparty/glsl-optimizer/include");
+    build.include("bgfx/3rdparty/glslang/glslang/Public");
+    build.include("bgfx/3rdparty/glslang");
+    build.include("bgfx/3rdparty/fcpp");
+    build.include("bgfx/3rdparty/spirv-cross");
+    build.include("bgfx/3rdparty/spirv-tools/include");
+    build.include("bgfx/3rdparty/spirv-tools/include/generated");
+    build.include("bgfx/3rdparty/spirv-tools");
+    build.include("bgfx/3rdparty/spirv-headers/include");
+    build.include("bgfx/3rdparty/webgpu/include");
     build.include("bgfx/3rdparty");
     build.include("bgfx/include");
     build.include("bx/include");
     build.include("bx/3rdparty");
     build.include("bimg/include");
-    build.include("bimg/3rdparty");
-    build.include("bimg/3rdparty/iqa/include");
-    build.include("bimg/3rdparty/astc-encoder/include");
-    build.include("bimg/3rdparty/tinyexr/deps/miniz");
 
     // defines - Currently not supporting WebGPU, GNM
     // OS support:
@@ -40,39 +52,8 @@ fn main() {
     build.define("BGFX_CONFIG_RENDERER_WEBGPU", "0");
     build.define("BGFX_CONFIG_RENDERER_GNM", "0");
 
-    // Make it optional to enable bgfx debug setting
-    /*
-    #[cfg(feature = "bgfx-debug")]
-    {
-        build.define("BX_CONFIG_DEBUG", "1");
-    }
-
-    #[cfg(not(feature = "bgfx-debug"))]
-    {
-        build.define("BX_CONFIG_DEBUG", "0");
-    }
-    */
-
     build.define("BX_CONFIG_DEBUG", "0");
-
-    // Don't include decode of ASTC to reduce code size and is unlikely a common use-case.
-    build.define("BIMG_DECODE_ASTC", "0");
-
-    // Never use multi-threading in emscripten
-    if env.contains("emscripten") {
-        build.define("BGFX_CONFIG_MULTITHREADED", "0");
-    } else {
-        // Optionally disable multi-threading
-        #[cfg(feature = "bgfx-single-threaded")]
-        {
-            build.define("BGFX_CONFIG_MULTITHREADED", "0");
-        }
-
-        #[cfg(not(feature = "bgfx-single-threaded"))]
-        {
-            build.define("BGFX_CONFIG_MULTITHREADED", "1");
-        }
-    }
+    build.define("ENABLE_OPT", "1");
 
     if env.contains("windows") {
         build.define("BGFX_CONFIG_RENDERER_VULKAN", "1");
@@ -105,62 +86,54 @@ fn main() {
 
     // sources
     build.file("bx/src/amalgamated.cpp");
-    build.file("bimg/src/image.cpp");
-    build.file("bimg/src/image_cubemap_filter.cpp");
-    build.file("bimg/src/image_decode.cpp");
-    build.file("bimg/src/image_gnf.cpp");
-    build.file("bgfx/src/bgfx.cpp");
     build.file("bgfx/src/vertexlayout.cpp");
-    build.file("bgfx/src/debug_renderdoc.cpp");
-    build.file("bgfx/src/topology.cpp");
     build.file("bgfx/src/shader.cpp");
+    build.file("bgfx/src/shader_dx9bc.cpp");
     build.file("bgfx/src/shader_dxbc.cpp");
-    build.file("bgfx/src/renderer_agc.cpp");
-    build.file("bgfx/src/renderer_gnm.cpp");
-    build.file("bgfx/src/renderer_webgpu.cpp");
-    build.file("bgfx/src/renderer_nvn.cpp");
-    build.file("bgfx/src/renderer_gl.cpp");
-    build.file("bgfx/src/renderer_vk.cpp");
-    build.file("bgfx/src/renderer_noop.cpp");
-    build.file("bgfx/src/renderer_d3d9.cpp");
-    build.file("bgfx/src/renderer_d3d11.cpp");
-    build.file("bgfx/src/renderer_d3d12.cpp");
+    build.file("bgfx/src/shader_spirv.cpp");
+    build.file("bgfx/tools/shaderc/shaderc_glsl.cpp");
+    build.file("bgfx/tools/shaderc/shaderc_hlsl.cpp");
+    build.file("bgfx/tools/shaderc/shaderc_metal.cpp");
+    build.file("bgfx/tools/shaderc/shaderc_pssl.cpp");
+    build.file("bgfx/tools/shaderc/shaderc_spirv.cpp");
+    build.file("bgfx/tools/shaderc/shaderc.cpp");
 
-    if env.contains("windows") {
-        build.file("bgfx/src/glcontext_wgl.cpp");
-        build.file("bgfx/src/nvapi.cpp");
-        build.file("bgfx/src/dxgi.cpp");
-        build.file("bgfx/src/shader_dx9bc.cpp");
-        build.file("bgfx/src/shader_spirv.cpp");
-    } else if env.contains("darwin") {
-        build.file("bgfx/src/renderer_mtl.mm");
-    } else if env.contains("android") {
-        build.file("bgfx/src/glcontext_egl.cpp");
-    } else if env.contains("emscripten") {
-        build.file("bgfx/src/glcontext_html5.cpp");
-    } else {
-        build.file("bgfx/src/glcontext_egl.cpp");
-        build.cpp_link_stdlib("stdc++");
+    for entry in WalkDir::new("bgfx/3rdparty").into_iter().flatten() {
+        let Some(ext) = entry.path().extension().map(|e| e.to_string_lossy()) else {
+            continue;
+        };
+
+        let name = entry
+            .path()
+            .as_os_str()
+            .to_string_lossy()
+            .replace("\\", "/");
+
+        let banned_files = [
+            "android_native_app_glue.c",
+            "HLSL/hlslAttributes.cpp",
+            "HLSL/hlslGrammar.cpp",
+            "HLSL/hlslOpMap.cpp",
+            "HLSL/hlslParseables.cpp",
+            "HLSL/hlslParseHelper.cpp",
+            "HLSL/hlslScanContext.cpp",
+            "HLSL/hlslTokenStream.cpp",
+            "node/binding.cpp",
+            "node/compiler.cpp",
+            "node/shader.cpp",
+            "spirv-cross/main.cpp",
+            "spirv-remap.cpp",
+            "StandAlone.cpp",
+            "Unix/ossource.cpp",
+            "usecpp.c",
+            "glsl/main.cpp",
+            "getopt/getopt_long.c",
+        ];
+
+        if (ext == "cpp" || ext == "c") && !banned_files.iter().any(|b| name.ends_with(b)) {
+            build.file(entry.path());
+        }
     }
 
-    build.compile("bgfx_sys");
-
-    // linker stuff
-    if env.contains("windows") {
-        // todo fixme
-    } else if env.contains("darwin") {
-        println!("cargo:rustc-link-lib=framework=Metal");
-        println!("cargo:rustc-link-lib=framework=MetalKit");
-        println!("cargo:rustc-link-lib=c++");
-    } else if env.contains("android") {
-        println!("cargo:rustc-link-lib=c++_shared");
-        println!("cargo:rustc-link-lib=GLESv1_CM");
-        println!("cargo:rustc-link-lib=GLESv2");
-        println!("cargo:rustc-link-lib=EGL");
-    } else {
-        println!("cargo:rustc-link-lib=pthread");
-        println!("cargo:rustc-link-lib=stdc++");
-        println!("cargo:rustc-link-lib=GL");
-        println!("cargo:rustc-link-lib=X11");
-    }
+    build.compile("bgfx_shaderc");
 }

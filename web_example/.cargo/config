@@ -1,3 +1,0 @@
-[build]
-rustflags = ["-C", "link-args=-sUSE_GLFW=3 -sUSE_WEBGL2 -sALLOW_MEMORY_GROWTH=1"]
-

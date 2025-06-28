@@ -1,44 +1,15 @@
 [package]
 license = "BSD-2-Clause"
-authors = ["Daniel Collin <daniel@collin.com>"]
+authors = ["Jonathan Nilsson <lord.jonil@gmail.com>"]
 categories = ["rendering::graphics-api"]
-description = "low-level FFI bindings for bgfx"
-repository = "https://github.com/emoon/bgfx-sys"
-documentation = "https://docs.rs/bgfx-sys/0.14/bgfx-sys"
-readme = "readme.md"
-name = "bgfx-sys"
-version = "0.15.0"
-edition = "2018"
+description = "low-level FFI bindings for bgfx shaderc"
+name = "bgfx-shaderc"
+version = "0.1.0"
+edition = "2024"
 build = "build.rs"
 
-exclude = [
-    "web_example",
-    "bgfx/bindings",
-    "bgfx/examples",
-    "bgfx/3rdparty/cgltf",
-    "bgfx/3rdparty/dear-imgui",
-    "bgfx/3rdparty/glslang",
-    "bgfx/3rdparty/fcpp",
-    "bgfx/3rdparty/glsl-optimizer",
-    "bgfx/3rdparty/spirv-cross",
-    "bgfx/3rdparty/spirv-headers",
-    "bgfx/3rdparty/spirv-tools",
-    "bgfx/tools",
-]
-
-[badges]
-maintenance = { status = "looking-for-maintainer" }
-
-[dev-dependencies]
-glfw = "0.41"
-raw-window-handle = "0.3"
-glam = "0.15"
+exclude = ["bgfx/bindings", "bgfx/examples"]
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"] }
-
-[dependencies]
-
-[features]
-bgfx-debug = []
-bgfx-single-threaded = []
+walkdir = "2"
