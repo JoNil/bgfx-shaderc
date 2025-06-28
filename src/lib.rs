@@ -9,10 +9,10 @@ unsafe extern "C" {
     fn cpp_main(argc: c_int, argv: *const *const c_void);
 }
 
-fn main() {
+pub fn shaderc(args: &[&str]) {
     let prog = env::current_exe().unwrap();
     let args = iter::once(prog.to_string_lossy().into_owned())
-        .chain(env::args())
+        .chain(args.iter().map(|s| s.to_string()))
         .map(|s| CString::new(s).unwrap())
         .collect::<Vec<_>>();
     let args = args
